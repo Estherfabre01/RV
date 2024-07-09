@@ -68,8 +68,6 @@ namespace UnityEngine.XR.Interaction.Toolkit.Samples.StarterAssets
         float m_LimpFrequency = 1f; // Frequency of the limp cycle in seconds
         [SerializeField]
         float m_LimpAmplitude = 0.1f; // Amplitude of the limp effect, smaller value for smaller amplitude
-        [SerializeField]
-        float m_CameraTiltAngle = 5f; // Angle to tilt the camera during the limp
 
         protected override void Awake()
         {
@@ -147,47 +145,26 @@ namespace UnityEngine.XR.Interaction.Toolkit.Samples.StarterAssets
 
             // Limping effect: adjust the forward movement
             m_LimpCycle += Time.deltaTime * m_LimpFrequency;
-            float limpFactor = AsymmetricLimpCurve(m_LimpCycle) * m_LimpAmplitude;
+            float limpFactor = CustomLimpCurve(m_LimpCycle) * m_LimpAmplitude;
 
             var move = base.ComputeDesiredMove(input);
             move.y += limpFactor; // Apply limp factor to the vertical component of the movement
 
-            // Tilt the camera during the descent
-            TiltCameraDuringLimp(m_LimpCycle);
-
             return move;
         }
 
-        float AsymmetricLimpCurve(float cycle)
+        float CustomLimpCurve(float cycle)
         {
-            cycle = cycle % 1.0f; // Ensure cycle is within [0, 1]
-            if (cycle < 0.5f)
+            cycle = cycle % 2.0f; // Ensure cycle is within [0, 2]
+            if (cycle < 1.0f)
             {
-                // Slow descent using cos
-                return Mathf.Cos(cycle * Mathf.PI) - 1; // Range from -1 to 0
+                // Slow descent
+                return Mathf.Lerp(0, -1, cycle); // Linearly interpolate from 0 to -1
             }
             else
             {
-                // Fast ascent using cos
-                return Mathf.Cos((cycle - 0.5f) * 2 * Mathf.PI) * 0.5f; // Range from 0 to 0.5
-            }
-        }
-
-        void TiltCameraDuringLimp(float cycle)
-        {
-            cycle = cycle % 1.0f; // Ensure cycle is within [0, 1]
-            if (m_HeadTransform != null)
-            {
-                if (cycle < 0.5f)
-                {
-                    // During descent, tilt the camera to the right
-                    m_HeadTransform.localRotation = Quaternion.Euler(m_HeadTransform.localRotation.eulerAngles.x, m_HeadTransform.localRotation.eulerAngles.y, m_CameraTiltAngle);
-                }
-                else
-                {
-                    // Reset the camera tilt during ascent
-                    m_HeadTransform.localRotation = Quaternion.Euler(m_HeadTransform.localRotation.eulerAngles.x, m_HeadTransform.localRotation.eulerAngles.y, 0);
-                }
+                // Fast ascent
+                return Mathf.Lerp(-1, 0, (cycle - 1) * 3); // Linearly interpolate from -1 to 0 quickly
             }
         }
     }
