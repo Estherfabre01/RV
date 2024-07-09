@@ -1,8 +1,8 @@
 using UnityEngine;
+using UnityEngine.Assertions;
 using UnityEngine.XR.Interaction.Toolkit.Inputs.Readers;
 using UnityEngine.XR.Interaction.Toolkit.Locomotion.Turning;
 using Unity.XR.CoreUtils;
-using UnityEngine.Assertions;
 
 namespace UnityEngine.XR.Interaction.Toolkit.Samples.StarterAssets
 {
@@ -155,6 +155,7 @@ namespace UnityEngine.XR.Interaction.Toolkit.Samples.StarterAssets
 
             if (m_InLimpPause)
             {
+                // During pause phase
                 if (m_LimpCycle >= 1f)
                 {
                     m_InLimpPause = false;
@@ -163,6 +164,7 @@ namespace UnityEngine.XR.Interaction.Toolkit.Samples.StarterAssets
             }
             else
             {
+                // During movement phase
                 if (m_LimpCycle > 0.5f + m_LimpPauseDuration)
                 {
                     m_InLimpPause = true;
