@@ -71,6 +71,8 @@ namespace UnityEngine.XR.Interaction.Toolkit.Samples.StarterAssets
         [SerializeField]
         float m_LimpPauseDuration = 0.5f; // Duration in seconds to pause at the top of the limp
 
+        bool m_InLimpPause = false;
+
         protected override void Awake()
         {
             base.Awake();
@@ -148,6 +150,22 @@ namespace UnityEngine.XR.Interaction.Toolkit.Samples.StarterAssets
             // Limping effect: adjust the forward movement
             m_LimpCycle += Time.deltaTime * m_LimpFrequency;
             float limpFactor = AsymmetricLimpCurve(m_LimpCycle) * m_LimpAmplitude;
+
+            if (m_InLimpPause)
+            {
+                if (m_LimpCycle >= 1f)
+                {
+                    m_InLimpPause = false;
+                    m_LimpCycle = 0f;
+                }
+            }
+            else
+            {
+                if (m_LimpCycle > 0.5f + m_LimpPauseDuration)
+                {
+                    m_InLimpPause = true;
+                }
+            }
 
             var move = base.ComputeDesiredMove(input);
 
