@@ -176,15 +176,18 @@ namespace UnityEngine.XR.Interaction.Toolkit.Samples.StarterAssets
         void TiltCameraDuringLimp(float cycle)
         {
             cycle = cycle % 1.0f; // Ensure cycle is within [0, 1]
-            if (cycle < 0.5f)
+            if (m_HeadTransform != null)
             {
-                // During descent, tilt the camera to the right
-                m_HeadTransform.localRotation = Quaternion.Euler(m_HeadTransform.localRotation.eulerAngles.x, m_HeadTransform.localRotation.eulerAngles.y, m_CameraTiltAngle);
-            }
-            else
-            {
-                // Reset the camera tilt during ascent
-                m_HeadTransform.localRotation = Quaternion.Euler(m_HeadTransform.localRotation.eulerAngles.x, m_HeadTransform.localRotation.eulerAngles.y, 0);
+                if (cycle < 0.5f)
+                {
+                    // During descent, tilt the camera to the right
+                    m_HeadTransform.localRotation = Quaternion.Euler(m_HeadTransform.localRotation.eulerAngles.x, m_HeadTransform.localRotation.eulerAngles.y, m_CameraTiltAngle);
+                }
+                else
+                {
+                    // Reset the camera tilt during ascent
+                    m_HeadTransform.localRotation = Quaternion.Euler(m_HeadTransform.localRotation.eulerAngles.x, m_HeadTransform.localRotation.eulerAngles.y, 0);
+                }
             }
         }
     }
