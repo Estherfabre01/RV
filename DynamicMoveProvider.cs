@@ -189,12 +189,32 @@ namespace UnityEngine.XR.Interaction.Toolkit.Samples.StarterAssets
 
             // Limping effect: adjust the forward movement
             m_LimpCycle += Time.deltaTime * m_LimpFrequency;
-            float limpFactor = Mathf.Sin(m_LimpCycle * Mathf.PI * 2) * m_LimpAmplitude;
+            float limpFactor = AsymmetricLimpCurve(m_LimpCycle) * m_LimpAmplitude;
 
             var move = base.ComputeDesiredMove(input);
             move.y += limpFactor; // Apply limp factor to the vertical component of the movement
 
             return move;
+        }
+
+        /// <summary>
+        /// Function to create an asymmetric curve for limping.
+        /// </summary>
+        /// <param name="cycle">The current cycle time.</param>
+        /// <returns>The limp factor based on the asymmetric curve.</returns>
+        float AsymmetricLimpCurve(float cycle)
+        {
+            cycle = cycle % 1.0f; // Ensure cycle is within [0, 1]
+            if (cycle < 0.5f)
+            {
+                // Slow descent
+                return Mathf.Sin(cycle * Mathf.PI);
+            }
+            else
+            {
+                // Fast ascent
+                return Mathf.Sin((cycle - 0.5f) * 2 * Mathf.PI);
+            }
         }
     }
 }
