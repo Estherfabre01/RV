@@ -1,71 +1,90 @@
 using UnityEngine;
 using UnityEngine.XR.Interaction.Toolkit.Inputs.Readers;
 using UnityEngine.XR.Interaction.Toolkit.Locomotion.Turning;
+using Unity.XR.CoreUtils;
+using UnityEngine.Assertions;
 
-namespace UnityEngine.XR.Interaction.Toolkit.Locomotion.Movement
+namespace UnityEngine.XR.Interaction.Toolkit.Samples.StarterAssets
 {
-    [AddComponentMenu("XR/Locomotion/Continuous Move Provider", 11)]
-    [HelpURL(XRHelpURLConstants.k_ContinuousMoveProvider)]
-    public class ContinuousMoveProvider : LocomotionProvider
+    public class DynamicMoveProvider : ContinuousMoveProvider
     {
-        [SerializeField]
-        float m_MoveSpeed = 1f;
-        public float moveSpeed
+        public enum MovementDirection
         {
-            get => m_MoveSpeed;
-            set => m_MoveSpeed = value;
+            HeadRelative,
+            HandRelative,
+        }
+
+        [Space, Header("Movement Direction")]
+        [SerializeField]
+        Transform m_HeadTransform;
+
+        public Transform headTransform
+        {
+            get => m_HeadTransform;
+            set => m_HeadTransform = value;
         }
 
         [SerializeField]
-        bool m_EnableStrafe = true;
-        public bool enableStrafe
+        Transform m_LeftControllerTransform;
+
+        public Transform leftControllerTransform
         {
-            get => m_EnableStrafe;
-            set => m_EnableStrafe = value;
+            get => m_LeftControllerTransform;
+            set => m_LeftControllerTransform = value;
         }
 
         [SerializeField]
-        bool m_EnableFly;
-        public bool enableFly
+        Transform m_RightControllerTransform;
+
+        public Transform rightControllerTransform
         {
-            get => m_EnableFly;
-            set => m_EnableFly = value;
+            get => m_RightControllerTransform;
+            set => m_RightControllerTransform = value;
         }
 
         [SerializeField]
-        bool m_UseGravity = true;
-        public bool useGravity
+        MovementDirection m_LeftHandMovementDirection;
+
+        public MovementDirection leftHandMovementDirection
         {
-            get => m_UseGravity;
-            set => m_UseGravity = value;
+            get => m_LeftHandMovementDirection;
+            set => m_LeftHandMovementDirection = value;
         }
 
         [SerializeField]
-        Transform m_ForwardSource;
-        public Transform forwardSource
+        MovementDirection m_RightHandMovementDirection;
+
+        public MovementDirection rightHandMovementDirection
         {
-            get => m_ForwardSource;
-            set => m_ForwardSource = value;
+            get => m_RightHandMovementDirection;
+            set => m_RightHandMovementDirection = value;
         }
 
-        public XRInputValueReader<Vector2> leftHandMoveInput { get; set; }
-        public XRInputValueReader<Vector2> rightHandMoveInput { get; set; }
+        Transform m_CombinedTransform;
+        Pose m_LeftMovementPose = Pose.identity;
+        Pose m_RightMovementPose = Pose.identity;
 
-        CharacterController m_CharacterController;
-        bool m_AttemptedGetCharacterController;
-        bool m_IsMovingXROrigin;
-        Vector3 m_VerticalVelocity;
-
-        // Ajout de variables pour la pause
+        // Variables for limping movement
+        float m_LimpCycle = 0f;
         [SerializeField]
-        float m_PauseDuration = 1f; // Durée de la pause en secondes
+        float m_LimpFrequency = 1f; // Frequency of the limp cycle in seconds
+        [SerializeField]
+        float m_LimpAmplitude = 0.1f; // Amplitude of the limp effect, smaller value for smaller amplitude
+        [SerializeField]
+        float m_LimpPauseDuration = 0.5f; // Duration in seconds to pause at the top of the limp
 
-        float m_PauseTimer; // Timer pour la pause
+        bool m_InLimpPause = false;
 
         protected override void Awake()
         {
             base.Awake();
-            m_PauseTimer = 0f;
+
+            m_CombinedTransform = new GameObject("[Dynamic Move Provider] Combined Forward Source").transform;
+            m_CombinedTransform.SetParent(transform, false);
+            m_CombinedTransform.localPosition = Vector3.zero;
+            m_CombinedTransform.localRotation = Quaternion.identity;
+
+            forwardSource = m_CombinedTransform;
         }
 
         protected override Vector3 ComputeDesiredMove(Vector2 input)
@@ -73,76 +92,109 @@ namespace UnityEngine.XR.Interaction.Toolkit.Locomotion.Movement
             if (input == Vector2.zero)
                 return Vector3.zero;
 
-            var xrOrigin = mediator.xrOrigin;
-            if (xrOrigin == null)
-                return Vector3.zero;
-
-            var inputMove = Vector3.ClampMagnitude(new Vector3(m_EnableStrafe ? input.x : 0f, 0f, input.y), 1f);
-            var forwardSourceTransform = m_ForwardSource == null ? xrOrigin.Camera.transform : m_ForwardSource;
-            var inputForwardInWorldSpace = forwardSourceTransform.forward;
-            var originTransform = xrOrigin.Origin.transform;
-            var speedFactor = m_MoveSpeed * Time.deltaTime * originTransform.localScale.x;
-
-            if (m_PauseTimer <= 0f)
+            if (m_HeadTransform == null)
             {
-                var translationInRigSpace = Quaternion.FromToRotation(originTransform.forward, inputForwardInWorldSpace) * inputMove * speedFactor;
-                var translationInWorldSpace = originTransform.TransformDirection(translationInRigSpace);
-                m_PauseTimer = m_PauseDuration; // Commence la pause après avoir calculé le mouvement
-                return translationInWorldSpace;
+                var xrOrigin = mediator.xrOrigin;
+                if (xrOrigin != null)
+                {
+                    var xrCamera = xrOrigin.Camera;
+                    if (xrCamera != null)
+                        m_HeadTransform = xrCamera.transform;
+                }
+            }
+
+            switch (m_LeftHandMovementDirection)
+            {
+                case MovementDirection.HeadRelative:
+                    if (m_HeadTransform != null)
+                        m_LeftMovementPose = m_HeadTransform.GetWorldPose();
+                    break;
+
+                case MovementDirection.HandRelative:
+                    if (m_LeftControllerTransform != null)
+                        m_LeftMovementPose = m_LeftControllerTransform.GetWorldPose();
+                    break;
+
+                default:
+                    Assert.IsTrue(false, $"Unhandled {nameof(MovementDirection)}={m_LeftHandMovementDirection}");
+                    break;
+            }
+
+            switch (m_RightHandMovementDirection)
+            {
+                case MovementDirection.HeadRelative:
+                    if (m_HeadTransform != null)
+                        m_RightMovementPose = m_HeadTransform.GetWorldPose();
+                    break;
+
+                case MovementDirection.HandRelative:
+                    if (m_RightControllerTransform != null)
+                        m_RightMovementPose = m_RightControllerTransform.GetWorldPose();
+                    break;
+
+                default:
+                    Assert.IsTrue(false, $"Unhandled {nameof(MovementDirection)}={m_RightHandMovementDirection}");
+                    break;
+            }
+
+            var leftHandValue = leftHandMoveInput.ReadValue();
+            var rightHandValue = rightHandMoveInput.ReadValue();
+
+            var totalSqrMagnitude = leftHandValue.sqrMagnitude + rightHandValue.sqrMagnitude;
+            var leftHandBlend = 0.5f;
+            if (totalSqrMagnitude > Mathf.Epsilon)
+                leftHandBlend = leftHandValue.sqrMagnitude / totalSqrMagnitude;
+
+            var combinedPosition = Vector3.Lerp(m_RightMovementPose.position, m_LeftMovementPose.position, leftHandBlend);
+            var combinedRotation = Quaternion.Slerp(m_RightMovementPose.rotation, m_LeftMovementPose.rotation, leftHandBlend);
+            m_CombinedTransform.SetPositionAndRotation(combinedPosition, combinedRotation);
+
+            // Limping effect: adjust the forward movement
+            m_LimpCycle += Time.deltaTime * m_LimpFrequency;
+            float limpFactor = AsymmetricLimpCurve(m_LimpCycle) * m_LimpAmplitude;
+
+            if (m_InLimpPause)
+            {
+                if (m_LimpCycle >= 1f)
+                {
+                    m_InLimpPause = false;
+                    m_LimpCycle = 0f;
+                }
             }
             else
             {
-                m_PauseTimer -= Time.deltaTime;
-                return Vector3.zero; // Retourne aucun mouvement pendant la pause
-            }
-        }
-
-        protected override void MoveRig(Vector3 translationInWorldSpace)
-        {
-            var xrOrigin = mediator.xrOrigin?.Origin;
-            if (xrOrigin == null)
-                return;
-
-            FindCharacterController();
-
-            var motion = translationInWorldSpace;
-
-            if (m_CharacterController != null && m_CharacterController.enabled)
-            {
-                if (m_CharacterController.isGrounded || !m_UseGravity || m_EnableFly)
+                if (m_LimpCycle > 0.5f + m_LimpPauseDuration)
                 {
-                    m_VerticalVelocity = Vector3.zero;
+                    m_InLimpPause = true;
                 }
-                else
-                {
-                    m_VerticalVelocity += Physics.gravity * Time.deltaTime;
-                }
-
-                motion += m_VerticalVelocity * Time.deltaTime;
             }
 
-            TryStartLocomotionImmediately();
+            var move = base.ComputeDesiredMove(input);
 
-            if (locomotionState != LocomotionState.Moving)
-                return;
+            // Apply limp factor to the vertical component of the movement
+            move.y += limpFactor;
 
-            m_IsMovingXROrigin = true;
-            transformation.motion = motion;
-            TryQueueTransformation(transformation);
+            return move;
         }
 
-        void FindCharacterController()
+        float AsymmetricLimpCurve(float cycle)
         {
-            var xrOrigin = mediator.xrOrigin?.Origin;
-            if (xrOrigin == null)
-                return;
+            cycle = cycle % 1.0f; // Ensure cycle is within [0, 1]
 
-            if (m_CharacterController == null && !m_AttemptedGetCharacterController)
+            if (cycle < 0.5f)
             {
-                if (!xrOrigin.TryGetComponent(out m_CharacterController) && xrOrigin != mediator.xrOrigin.gameObject)
-                    mediator.xrOrigin.TryGetComponent(out m_CharacterController);
-
-                m_AttemptedGetCharacterController = true;
+                // Slow descent using cos
+                return Mathf.Cos(cycle * Mathf.PI) - 1; // Range from -1 to 0
+            }
+            else if (cycle < 0.5f + m_LimpPauseDuration)
+            {
+                // Pause at the top
+                return 0;
+            }
+            else
+            {
+                // Fast ascent using cos
+                return Mathf.Cos((cycle - 0.5f - m_LimpPauseDuration) * 2 * Mathf.PI) * 0.5f; // Range from 0 to 0.5
             }
         }
     }
