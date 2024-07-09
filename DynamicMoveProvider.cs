@@ -68,6 +68,8 @@ namespace UnityEngine.XR.Interaction.Toolkit.Samples.StarterAssets
         float m_LimpFrequency = 1f; // Frequency of the limp cycle in seconds
         [SerializeField]
         float m_LimpAmplitude = 0.1f; // Amplitude of the limp effect, smaller value for smaller amplitude
+        [SerializeField]
+        float m_CameraTiltAngle = 5f; // Angle to tilt the camera during the limp
 
         protected override void Awake()
         {
@@ -150,6 +152,9 @@ namespace UnityEngine.XR.Interaction.Toolkit.Samples.StarterAssets
             var move = base.ComputeDesiredMove(input);
             move.y += limpFactor; // Apply limp factor to the vertical component of the movement
 
+            // Tilt the camera during the descent
+            TiltCameraDuringLimp(m_LimpCycle);
+
             return move;
         }
 
@@ -165,6 +170,21 @@ namespace UnityEngine.XR.Interaction.Toolkit.Samples.StarterAssets
             {
                 // Fast ascent using cos
                 return Mathf.Cos((cycle - 0.5f) * 2 * Mathf.PI) * 0.5f; // Range from 0 to 0.5
+            }
+        }
+
+        void TiltCameraDuringLimp(float cycle)
+        {
+            cycle = cycle % 1.0f; // Ensure cycle is within [0, 1]
+            if (cycle < 0.5f)
+            {
+                // During descent, tilt the camera to the right
+                m_HeadTransform.localRotation = Quaternion.Euler(m_HeadTransform.localRotation.eulerAngles.x, m_HeadTransform.localRotation.eulerAngles.y, m_CameraTiltAngle);
+            }
+            else
+            {
+                // Reset the camera tilt during ascent
+                m_HeadTransform.localRotation = Quaternion.Euler(m_HeadTransform.localRotation.eulerAngles.x, m_HeadTransform.localRotation.eulerAngles.y, 0);
             }
         }
     }
