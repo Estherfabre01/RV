@@ -166,7 +166,7 @@ namespace UnityEngine.XR.Interaction.Toolkit.Samples.StarterAssets
                 // Slow descent using cos
                 return Mathf.Cos(cycle * Mathf.PI) - 1; // Range from -1 to 0
             }
-            else if (cycle < 0.5f + m_LimpPauseDuration / 2f)
+            else if (cycle < 0.5f + m_LimpPauseDuration)
             {
                 // Pause at the top
                 return 0;
@@ -174,7 +174,7 @@ namespace UnityEngine.XR.Interaction.Toolkit.Samples.StarterAssets
             else
             {
                 // Fast ascent using cos
-                return Mathf.Cos((cycle - 0.5f - m_LimpPauseDuration / 2f) * 2 * Mathf.PI) * 0.5f; // Range from 0 to 0.5
+                return Mathf.Cos((cycle - 0.5f - m_LimpPauseDuration) * 2 * Mathf.PI) * 0.5f; // Range from 0 to 0.5
             }
         }
     }
